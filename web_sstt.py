@@ -13,6 +13,7 @@ import sys          # sys.exit
 import re           # Analizador sintáctico
 import logging      # Para imprimir logs
 
+# XD!
 
 
 BUFSIZE = 8192 # Tamaño máximo del buffer que se puede utilizar
