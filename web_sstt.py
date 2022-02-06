@@ -1,9 +1,11 @@
 # coding=utf-8
 #!/usr/bin/env python3
 
+from pty import fork
 import socket
 import selectors    #https://docs.python.org/3/library/selectors.html
 import select
+from ssl import SOL_SOCKET
 import types        # Para definir el tipo de datos data
 import argparse     # Leer parametros de ejecución
 import os           # Obtener ruta y extension
@@ -33,21 +35,22 @@ def enviar_mensaje(cs, data):
     """ Esta función envía datos (data) a través del socket cs
         Devuelve el número de bytes enviados.
     """
-    pass
+    return cs.send(data)
 
 
 def recibir_mensaje(cs,data):
     """ Esta función recibe datos a través del socket cs
         Leemos la información que nos llega. recv() devuelve un string con los datos.
     """
-    pass
+    data = cs.recv(BUFSIZE)
+    return data
 
 
 def cerrar_conexion(cs):
     """ Esta función cierra una conexión activa.
     """
-    pass
-
+    cs.close()
+    
 
 def process_cookies(headers,  cs):
     """ Esta función procesa la cookie cookie_counter
@@ -135,6 +138,24 @@ def main():
 
             - Si es el proceso padre cerrar el socket que gestiona el hijo.
         """
+        s = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, socket.SOL_SOCKET)
+        s.bind('localhost', 50000)
+        s.listen(MAX_ACCESOS)
+
+        while (True):
+            (conn, addr) = s.accept()
+            try:
+                pid = os.fork()
+            except ModuleNotFoundError:
+                True
+
+            if pid > 0:
+                cerrar_conexion(s)
+                process_web_request(conn, args.webroot)
+
+            else:
+                cerrar_conexion(conn)
     except KeyboardInterrupt:
         True
 
