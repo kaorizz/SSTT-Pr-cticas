@@ -38,19 +38,17 @@ def enviar_mensaje(cs, data):
     return cs.send(data)
 
 
-def recibir_mensaje(cs,data):
+def recibir_mensaje(cs):
     """ Esta función recibe datos a través del socket cs
         Leemos la información que nos llega. recv() devuelve un string con los datos.
     """
-    data = cs.recv(BUFSIZE)
-    return data
+    return cs.recv(BUFSIZE)
 
 
 def cerrar_conexion(cs):
     """ Esta función cierra una conexión activa.
     """
     cs.close()
-    
 
 def process_cookies(headers,  cs):
     """ Esta función procesa la cookie cookie_counter
@@ -98,6 +96,36 @@ def process_web_request(cs, webroot):
             * Si es por timeout, se cierra el socket tras el período de persistencia.
                 * NOTA: Si hay algún error, enviar una respuesta de error con una pequeña página HTML que informe del error.
     """
+    inputs = [cs]
+
+    while (True):
+        (rsublist, wsublist, xsublist) = select.select(inputs, [], inputs, TIMEOUT_CONNECTION)
+        if rsublist == [] and wsublist == [] and xsublist == []:
+            cerrar_conexion(cs)
+        elif rsublist == inputs:
+            
+
+
+
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 def main():
@@ -147,10 +175,11 @@ def main():
             (conn, addr) = s.accept()
             try:
                 pid = os.fork()
-            except ModuleNotFoundError:
-                True
+            except OSError:
+                print ("Error forking process")
+                continue
 
-            if pid > 0:
+            if pid == 0:
                 cerrar_conexion(s)
                 process_web_request(conn, args.webroot)
 
