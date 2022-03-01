@@ -13,12 +13,16 @@ from datetime import datetime, timedelta # Fechas de los mensajes HTTP
 import time         # Timeout conexión
 import sys          # sys.exit
 import re           # Analizador sintáctico
-import logging      # Para imprimir logs
+import logging
+from unittest import result      # Para imprimir logs
 
 
 BUFSIZE = 8192 # Tamaño máximo del buffer que se puede utilizar
 TIMEOUT_CONNECTION = 20 # Timout para la conexión persistente
 MAX_ACCESOS = 10
+
+patron_solicitud = r"\b(GET|POST|HEAD|PUT|DELETE) (/index\.html) HTTP/1\.1$"
+er_solicitud = re.compile(patron_solicitud)
 
 # Extensiones admitidas (extension, name in HTTP)
 filetypes = {"gif":"image/gif", "jpg":"image/jpg", "jpeg":"image/jpeg", "png":"image/png", "htm":"text/htm", 
@@ -58,7 +62,24 @@ def process_cookies(headers,  cs):
         4. Si se encuentra y tiene el valor MAX_ACCESSOS se devuelve MAX_ACCESOS
         5. Si se encuentra y tiene un valor 1 <= x < MAX_ACCESOS se incrementa en 1 y se devuelve el valor
     """
-    pass
+    cabeceraCookie = "Cookie"
+    cabeceraSolucion = ""
+
+    for c in headers:
+        if (c.startswith(cabeceraCookie)):
+            cabeceraSolucion = c
+
+    if cabeceraSolucion == "":
+        return 1
+    else:
+        cabeceraMod = cabeceraSolucion.replace(" ","")
+        splittedCookie = cabeceraMod.split(":")
+        counter = splittedCookie[1]
+        if (counter==MAX_ACCESOS):
+            return MAX_ACCESOS
+        elif (counter>=1 and counter<=MAX_ACCESOS):
+            return counter+1
+        return 1
 
 
 def process_web_request(cs, webroot):
@@ -98,11 +119,34 @@ def process_web_request(cs, webroot):
     """
     inputs = [cs]
 
-    while (True):
+    while (inputs):
         (rsublist, wsublist, xsublist) = select.select(inputs, [], inputs, TIMEOUT_CONNECTION)
         if rsublist == [] and wsublist == [] and xsublist == []:
             cerrar_conexion(cs)
         elif rsublist == inputs:
+            datos = recibir_mensaje(cs)
+            lineas = datos.split("\n")
+            lineaSolicitud = lineas[0]
+            match_solicitud = er_solicitud.fullmatch(lineaSolicitud)
+            if (match_solicitud):
+                listaAtributos = []
+                for linea in lineas:
+                    listaAtributos.append(linea.split()[1])
+                if not (lineaSolicitud.startswith("GET")):
+                    # Devolver Error 405 "Method Not Allowed" (placeholder)
+                    pass
+                url = match_solicitud.group(2)
+                
+                    
+
+
+
+
+
+
+
+
+
             
 
 
