@@ -54,7 +54,7 @@ def cerrar_conexion(cs):
     """
     cs.close()
 
-def process_cookies(headers,  cs):
+def process_cookies(headers):
     """ Esta función procesa la cookie cookie_counter
         1. Se analizan las cabeceras en headers para buscar la cabecera Cookie
         2. Una vez encontrada una cabecera Cookie se comprueba si el valor es cookie_counter
@@ -136,7 +136,19 @@ def process_web_request(cs, webroot):
                     # Devolver Error 405 "Method Not Allowed" (placeholder)
                     pass
                 url = match_solicitud.group(2)
-                
+                (cadena1, separador, cadena2) = url.partition("?")
+                if (cadena1 == "/"):
+                    cadena1 = cadena1 + "index.html"
+                cadena1 = webroot + cadena1
+                if (not os.path.isfile(cadena1)):
+                    # Devolver Error 404 "Not found" (placeholder)
+                    pass
+                counter = process_cookies(lineas)
+                if (counter == MAX_ACCESOS):
+                    # Devolver Error 403 "Forbidden" (placeholder)
+                    pass
+                tamano = os.stat(cadena1).st_size
+                ext = os.path.basename(cadena1)
                     
 
 
