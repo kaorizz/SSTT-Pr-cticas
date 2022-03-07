@@ -1,6 +1,7 @@
 # coding=utf-8
 #!/usr/bin/env python3
 
+from ctypes import WinDLL
 from pty import fork
 import socket
 import selectors    #https://docs.python.org/3/library/selectors.html
@@ -20,6 +21,7 @@ from unittest import result      # Para imprimir logs
 BUFSIZE = 8192 # Tamaño máximo del buffer que se puede utilizar
 TIMEOUT_CONNECTION = 20 # Timout para la conexión persistente
 MAX_ACCESOS = 10
+CODIGO_RESPUESTA = 20
 
 patron_solicitud = r"\b(GET|POST|HEAD|PUT|DELETE) (/index\.html) HTTP/1\.1$"
 er_solicitud = re.compile(patron_solicitud)
@@ -81,6 +83,71 @@ def process_cookies(headers):
             return counter+1
         return 1
 
+def devolver403(cs, webroot):
+    error403 = "HTTP/1.1 403 Forbidden\r\n"
+    error403 = error403 + "Date: "
+    error403 = error403 + datetime.utcnow().strftime('%a, %d %b %Y %H:%M:%S GMT') +"\r\n"
+    error403 = error403 + "Server: "
+    error403 = error403 + "Connection "
+    error403 = error403 + "Keep-Alive\r\n"
+    error403 = error403 + "Content-Length: "
+    url = webroot + "/error403.html"
+    tamanoerror = os.stat(url)
+    ext = "html"
+    error403 = error403 + tamanoerror + "\r\n"
+    error403 = error403 + "Content-Type: "
+    error403 = error403 + filetypes[ext] + "\r\n\r\n"
+    
+    f = open(url, 'rb', BUFSIZE)
+    texto = f.read(tamanoerror)
+    error403 = error403 + texto
+    f.close()
+
+    enviar_mensaje(cs, error403)
+
+def devolver404(cs, webroot):
+    error404 = "HTTP/1.1 404 Not found\r\n"
+    error404 = error404 + "Date: "
+    error404 = error404 + datetime.utcnow().strftime('%a, %d %b %Y %H:%M:%S GMT') +"\r\n"
+    error404 = error404 + "Server: "
+    error404 = error404 + "Connection "
+    error404 = error404 + "Keep-Alive\r\n"
+    error404 = error404 + "Content-Length: "
+    url = webroot + "/error404.html"
+    tamanoerror = os.stat(url)
+    ext = "html"
+    error404 = error404 + tamanoerror + "\r\n"
+    error404 = error404 + "Content-Type: "
+    error404 = error404 + filetypes[ext] + "\r\n\r\n"
+    
+    f = open(url, 'rb', BUFSIZE)
+    texto = f.read(tamanoerror)
+    error404 = error404 + texto
+    f.close()
+
+    enviar_mensaje(cs, error404)
+
+def devolver405(cs, webroot):
+    error405 = "HTTP/1.1 405 Not allowed\r\n"
+    error405 = error405 + "Date: "
+    error405 = error405 + datetime.utcnow().strftime('%a, %d %b %Y %H:%M:%S GMT') +"\r\n"
+    error405 = error405 + "Server: "
+    error405 = error405 + "Connection "
+    error405 = error405 + "Keep-Alive\r\n"
+    error405 = error405 + "Content-Length: "
+    url = webroot + "/error405.html"
+    tamanoerror = os.stat(url)
+    ext = "html"
+    error405 = error405 + tamanoerror + "\r\n"
+    error405 = error405 + "Content-Type: "
+    error405 = error405 + filetypes[ext] + "\r\n\r\n"
+    
+    f = open(url, 'rb', BUFSIZE)
+    texto = f.read(tamanoerror)
+    error405 = error405 + texto
+    f.close()
+
+    enviar_mensaje(cs, error405)
 
 def process_web_request(cs, webroot):
     """ Procesamiento principal de los mensajes recibidos.
@@ -133,61 +200,44 @@ def process_web_request(cs, webroot):
                 for linea in lineas:
                     listaAtributos.append(linea.split()[1])
                 if not (lineaSolicitud.startswith("GET")):
-                    # Devolver Error 405 "Method Not Allowed" (placeholder)
-                    pass
+                    devolver405(cs, webroot)
                 url = match_solicitud.group(2)
                 (cadena1, separador, cadena2) = url.partition("?")
                 if (cadena1 == "/"):
                     cadena1 = cadena1 + "index.html"
                 cadena1 = webroot + cadena1
                 if (not os.path.isfile(cadena1)):
-                    # Devolver Error 404 "Not found" (placeholder)
-                    pass
+                    devolver404(cs, webroot)
                 counter = process_cookies(lineas)
                 if (counter == MAX_ACCESOS):
-                    # Devolver Error 403 "Forbidden" (placeholder)
-                    pass
+                    devolver403(cs, webroot)
                 tamano = os.stat(cadena1).st_size
                 ext = os.path.basename(cadena1)
-                    
 
+                respuesta = ""
+                respuesta = respuesta + "HTTP/1.1 "+CODIGO_RESPUESTA+" OK\r\n"
+                respuesta = respuesta + "Date: "
+                respuesta = respuesta + datetime.utcnow().strftime('%a, %d %b %Y %H:%M:%S GMT') +"\r\n"
+                respuesta = respuesta + "Server: "
+                respuesta = respuesta + "Connection: "
+                respuesta = respuesta + "Keep-Alive\r\n"
+                respuesta = respuesta + "Set-Cookie: "
+                respuesta = respuesta + counter + "\r\n"
+                respuesta = respuesta + "Content-Length: "
+                respuesta = respuesta + tamano + "\r\n"
+                respuesta = respuesta + "Content-Type "
+                respuesta = respuesta + filetypes[ext] + "\r\n\r\n"
 
+                f = open(url, 'rb', BUFSIZE)
+                texto = f.read(tamano)
+                respuesta = respuesta + texto
+                f.close()
 
-
-
-
-
-
-
-            
-
-
-
-        
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+                enviar_mensaje(cs, respuesta)
 
 def main():
     """ Función principal del servidor
     """
-
     try:
 
         # Argument parser para obtener la ip y puerto de los parámetros de ejecución del programa. IP por defecto 0.0.0.0
