@@ -234,6 +234,9 @@ def process_web_request(cs, webroot):
                 f.close()
 
                 enviar_mensaje(cs, respuesta)
+            else:
+                # Devolver Error 400 Bad Request (placeholder)
+                pass
 
 def main():
     """ Función principal del servidor
