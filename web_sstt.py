@@ -2,7 +2,7 @@
 #!/usr/bin/env python3
 
 from asyncio.base_subprocess import WriteSubprocessPipeProto
-from ctypes import WinDLL
+# from ctypes import WinDLL
 # from pty import fork
 import socket
 import selectors    #https://docs.python.org/3/library/selectors.html
@@ -24,7 +24,7 @@ TIMEOUT_CONNECTION = 20 # Timout para la conexión persistente
 MAX_ACCESOS = 10
 CODIGO_RESPUESTA = "200"
 
-patron_solicitud = r"\b(GET|POST|HEAD|PUT|DELETE) (/index\.html) HTTP/1\.1$"
+patron_solicitud = r"\b(GET|POST|HEAD|PUT|DELETE) (/.*) HTTP/1\.1$"
 er_solicitud = re.compile(patron_solicitud)
 
 # Extensiones admitidas (extension, name in HTTP)
@@ -78,10 +78,10 @@ def process_cookies(headers):
         cabeceraMod = cabeceraSolucion.replace(" ","")
         splittedCookie = cabeceraMod.split(":")
         counter = splittedCookie[1]
-        if (counter==MAX_ACCESOS):
+        if (int(counter)==MAX_ACCESOS):
             return MAX_ACCESOS
-        elif (counter>=1 and counter<=MAX_ACCESOS):
-            return counter+1
+        elif (int(counter)>=1 and int(counter)<=MAX_ACCESOS):
+            return int(counter)+1
         return 1
 
 def devolver403(cs, webroot):
@@ -92,7 +92,7 @@ def devolver403(cs, webroot):
     error403 = error403 + "Connection "
     error403 = error403 + "Keep-Alive\r\n"
     error403 = error403 + "Content-Length: "
-    url = webroot + "/error403.html"
+    url = webroot + "/Error403.html"
     tamanoerror = os.stat(url)
     ext = "html"
     error403 = error403 + tamanoerror + "\r\n"
@@ -115,7 +115,7 @@ def devolver404(cs, webroot):
     error404 = error404 + "Connection "
     error404 = error404 + "Keep-Alive\r\n"
     error404 = error404 + "Content-Length: "
-    url = webroot + "/error404.html"
+    url = webroot + "/Error404.html"
     tamanoerror = os.stat(url)
     ext = "html"
     error404 = error404 + tamanoerror + "\r\n"
@@ -138,7 +138,7 @@ def devolver405(cs, webroot):
     error405 = error405 + "Connection "
     error405 = error405 + "Keep-Alive\r\n"
     error405 = error405 + "Content-Length: "
-    url = webroot + "/error405.html"
+    url = webroot + "/Error405.html"
     tamanoerror = os.stat(url)
     ext = "html"
     error405 = error405 + tamanoerror + "\r\n"
@@ -188,33 +188,37 @@ def process_web_request(cs, webroot):
             * Si es por timeout, se cierra el socket tras el período de persistencia.
                 * NOTA: Si hay algún error, enviar una respuesta de error con una pequeña página HTML que informe del error.
     """
-    inputs = [cs]
+    rlist = [cs]
+    xlist = [cs]
+    wlist = []
 
-    while (inputs):
-        (rsublist, wsublist, xsublist) = select.select(inputs, [], inputs, TIMEOUT_CONNECTION)
-        if rsublist == [] and wsublist == [] and xsublist == []:
-            cerrar_conexion(cs)
-        elif rsublist == inputs:
+
+
+    while (True):
+        rsublist = []
+        wsublist = []
+        xlist = []
+        (rsublist, wsublist, xsublist) = select.select(rlist, [], xlist, TIMEOUT_CONNECTION)
+        #if rsublist == [] and wsublist == [] and xsublist == []:
+        #    cerrar_conexion(cs)
+        if rsublist == [cs]:
             datos = recibir_mensaje(cs)
-            lineas = datos.split("\n")
+            lineas = datos.split("\r\n")
             lineaSolicitud = lineas[0]
             match_solicitud = er_solicitud.fullmatch(lineaSolicitud)
             if (match_solicitud):
-                listaAtributos = []
-                for linea in lineas:
-                    listaAtributos.append(linea.split()[1])
                 if not (lineaSolicitud.startswith("GET")):
-                    devolver405(cs, webroot)
+                    return devolver405(cs, webroot)
                 url = match_solicitud.group(2)
                 (cadena1, separador, cadena2) = url.partition("?")
                 if (cadena1 == "/"):
                     cadena1 = cadena1 + "index.html"
                 cadena1 = webroot + cadena1
                 if (not os.path.isfile(cadena1)):
-                    devolver404(cs, webroot)
+                    return devolver404(cs, webroot)
                 counter = process_cookies(lineas)
                 if (counter == MAX_ACCESOS):
-                    devolver403(cs, webroot)
+                    return devolver403(cs, webroot)
                 tamano = os.stat(cadena1).st_size
                 ext = os.path.basename(cadena1).split(".")[1]
 
@@ -226,13 +230,14 @@ def process_web_request(cs, webroot):
                 respuesta = respuesta + "Connection: "
                 respuesta = respuesta + "Keep-Alive\r\n"
                 respuesta = respuesta + "Set-Cookie: "
-                respuesta = respuesta + counter + "\r\n"
+                respuesta = respuesta + str(counter) + "\r\n"
                 respuesta = respuesta + "Content-Length: "
-                respuesta = respuesta + tamano + "\r\n"
+                respuesta = respuesta + str(tamano) + "\r\n"
                 respuesta = respuesta + "Content-Type "
                 respuesta = respuesta + filetypes[ext] + "\r\n\r\n"
 
-                f = open(url, 'rb', BUFSIZE)
+                logger.info(cadena1)
+                f = open(cadena1, 'rb', BUFSIZE)
                 texto = f.read(tamano)
                 encoded_resp = respuesta.encode()
                 mensaje = encoded_resp + texto
@@ -279,7 +284,7 @@ def main():
         """
         s = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        s.bind(args.host, args.port)
+        s.bind((args.host, args.port))
         s.listen()
 
         while (True):
