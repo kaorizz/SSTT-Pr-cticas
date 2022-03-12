@@ -23,8 +23,10 @@ BUFSIZE = 8192 # Tamaño máximo del buffer que se puede utilizar
 TIMEOUT_CONNECTION = 20 # Timout para la conexión persistente
 MAX_ACCESOS = 10
 CODIGO_RESPUESTA = "200"
+MAX_AGE = "120"
+KEEP_ALIVE_TIME = TIMEOUT_CONNECTION+1
 
-patron_solicitud = r"\b(GET|POST|HEAD|PUT|DELETE) (/.*) HTTP/1\.1$"
+patron_solicitud = r"\b(GET|POST|HEAD|PUT|DELETE) (/.*) HTTP/(\d\.\d)$"
 er_solicitud = re.compile(patron_solicitud)
 
 # Extensiones admitidas (extension, name in HTTP)
@@ -68,6 +70,8 @@ def process_cookies(headers):
     cabeceraCookie = "Cookie"
     cabeceraSolucion = ""
 
+    #Cookie: cookie_counter=3
+
     for c in headers:
         if (c.startswith(cabeceraCookie)):
             cabeceraSolucion = c
@@ -77,25 +81,51 @@ def process_cookies(headers):
     else:
         cabeceraMod = cabeceraSolucion.replace(" ","")
         splittedCookie = cabeceraMod.split(":")
-        counter = splittedCookie[1]
+        cookie_counter = splittedCookie[1]
+        counter = cookie_counter.split("=")[1]
         if (int(counter)==MAX_ACCESOS):
             return MAX_ACCESOS
         elif (int(counter)>=1 and int(counter)<=MAX_ACCESOS):
             return int(counter)+1
         return 1
 
+def devolver400(cs, webroot):
+    error400 = "HTTP/1.1 400 Bad Request\r\n"
+    error400 = error400 + "Date: "
+    error400 = error400 + datetime.utcnow().strftime('%a, %d %b %Y %H:%M:%S GMT') +"\r\n"
+    error400 = error400 + "Server: web.kaorisite.org\r\n"
+    error400 = error400 + "Connection: "
+    error400 = error400 + "keep-alive\r\n"
+    error400 = error400 + "Keep-Alive: timeout = " + str(KEEP_ALIVE_TIME) + "\r\n"
+    error400 = error400 + "Content-Length: "
+    url = webroot + "/Error400.html"
+    tamanoerror = os.stat(url).st_size
+    ext = "html"
+    error400 = error400 + str(tamanoerror) + "\r\n"
+    error400 = error400 + "Content-Type: "
+    error400 = error400 + filetypes[ext] + "\r\n\r\n"
+    
+    f = open(url, 'rb', BUFSIZE)
+    texto = f.read(tamanoerror)
+    encoded_error = error400.encode()
+    mensaje_error = encoded_error + texto
+    f.close()
+
+    enviar_mensaje(cs, mensaje_error)
+
 def devolver403(cs, webroot):
     error403 = "HTTP/1.1 403 Forbidden\r\n"
     error403 = error403 + "Date: "
     error403 = error403 + datetime.utcnow().strftime('%a, %d %b %Y %H:%M:%S GMT') +"\r\n"
-    error403 = error403 + "Server: "
-    error403 = error403 + "Connection "
-    error403 = error403 + "Keep-Alive\r\n"
+    error403 = error403 + "Server: web.kaorisite.org\r\n"
+    error403 = error403 + "Connection: "
+    error403 = error403 + "keep-alive\r\n"
+    error403 = error403 + "Keep-Alive: timeout = " + str(KEEP_ALIVE_TIME) + "\r\n"
     error403 = error403 + "Content-Length: "
     url = webroot + "/Error403.html"
-    tamanoerror = os.stat(url)
+    tamanoerror = os.stat(url).st_size
     ext = "html"
-    error403 = error403 + tamanoerror + "\r\n"
+    error403 = error403 + str(tamanoerror) + "\r\n"
     error403 = error403 + "Content-Type: "
     error403 = error403 + filetypes[ext] + "\r\n\r\n"
     
@@ -111,14 +141,15 @@ def devolver404(cs, webroot):
     error404 = "HTTP/1.1 404 Not found\r\n"
     error404 = error404 + "Date: "
     error404 = error404 + datetime.utcnow().strftime('%a, %d %b %Y %H:%M:%S GMT') +"\r\n"
-    error404 = error404 + "Server: "
-    error404 = error404 + "Connection "
-    error404 = error404 + "Keep-Alive\r\n"
+    error404 = error404 + "Server: web.kaorisite.org\r\n"
+    error404 = error404 + "Connection: "
+    error404 = error404 + "keep-alive\r\n"
+    error404 = error404 + "Keep-Alive: timeout = " + str(KEEP_ALIVE_TIME) + "\r\n"
     error404 = error404 + "Content-Length: "
     url = webroot + "/Error404.html"
-    tamanoerror = os.stat(url)
+    tamanoerror = os.stat(url).st_size
     ext = "html"
-    error404 = error404 + tamanoerror + "\r\n"
+    error404 = error404 + str(tamanoerror) + "\r\n"
     error404 = error404 + "Content-Type: "
     error404 = error404 + filetypes[ext] + "\r\n\r\n"
     
@@ -134,20 +165,45 @@ def devolver405(cs, webroot):
     error405 = "HTTP/1.1 405 Not allowed\r\n"
     error405 = error405 + "Date: "
     error405 = error405 + datetime.utcnow().strftime('%a, %d %b %Y %H:%M:%S GMT') +"\r\n"
-    error405 = error405 + "Server: "
-    error405 = error405 + "Connection "
-    error405 = error405 + "Keep-Alive\r\n"
+    error405 = error405 + "Server: web.kaorisite.org\r\n"
+    error405 = error405 + "Connection: "
+    error405 = error405 + "keep-alive\r\n"
+    error405 = error405 + "Keep-Alive: timeout = " + str(KEEP_ALIVE_TIME) + "\r\n"
     error405 = error405 + "Content-Length: "
     url = webroot + "/Error405.html"
-    tamanoerror = os.stat(url)
+    tamanoerror = os.stat(url).st_size
     ext = "html"
-    error405 = error405 + tamanoerror + "\r\n"
+    error405 = error405 + str(tamanoerror) + "\r\n"
     error405 = error405 + "Content-Type: "
     error405 = error405 + filetypes[ext] + "\r\n\r\n"
     
     f = open(url, 'rb', BUFSIZE)
     texto = f.read(tamanoerror)
     encoded_error = error405.encode()
+    mensaje_error = encoded_error + texto
+    f.close()
+
+    enviar_mensaje(cs, mensaje_error)
+
+def devolver505(cs, webroot):
+    error505 = "HTTP/1.1 505 Version Not Supported\r\n"
+    error505 = error505 + "Date: "
+    error505 = error505 + datetime.utcnow().strftime('%a, %d %b %Y %H:%M:%S GMT') +"\r\n"
+    error505 = error505 + "Server: web.kaorisite.org\r\n"
+    error505 = error505 + "Connection: "
+    error505 = error505 + "keep-alive\r\n"
+    error505 = error505 + "Keep-Alive: timeout = " + str(KEEP_ALIVE_TIME) + "\r\n"
+    error505 = error505 + "Content-Length: "
+    url = webroot + "/Error505.html"
+    tamanoerror = os.stat(url).st_size
+    ext = "html"
+    error505 = error505 + str(tamanoerror) + "\r\n"
+    error505 = error505 + "Content-Type: "
+    error505 = error505 + filetypes[ext] + "\r\n\r\n"
+    
+    f = open(url, 'rb', BUFSIZE)
+    texto = f.read(tamanoerror)
+    encoded_error = error505.encode()
     mensaje_error = encoded_error + texto
     f.close()
 
@@ -190,7 +246,6 @@ def process_web_request(cs, webroot):
     """
     rlist = [cs]
     xlist = [cs]
-    wlist = []
 
 
 
@@ -199,14 +254,18 @@ def process_web_request(cs, webroot):
         wsublist = []
         xlist = []
         (rsublist, wsublist, xsublist) = select.select(rlist, [], xlist, TIMEOUT_CONNECTION)
-        #if rsublist == [] and wsublist == [] and xsublist == []:
-        #    cerrar_conexion(cs)
+        if rsublist == [] and wsublist == [] and xsublist == []:
+            cerrar_conexion(cs)
+            break
         if rsublist == [cs]:
             datos = recibir_mensaje(cs)
             lineas = datos.split("\r\n")
             lineaSolicitud = lineas[0]
             match_solicitud = er_solicitud.fullmatch(lineaSolicitud)
             if (match_solicitud):
+                version = match_solicitud.group(3)
+                if (version != "1.1"):
+                    return devolver505(cs, webroot)
                 if not (lineaSolicitud.startswith("GET")):
                     return devolver405(cs, webroot)
                 url = match_solicitud.group(2)
@@ -226,14 +285,16 @@ def process_web_request(cs, webroot):
                 respuesta = respuesta + "HTTP/1.1 "+CODIGO_RESPUESTA+" OK\r\n"
                 respuesta = respuesta + "Date: "
                 respuesta = respuesta + datetime.utcnow().strftime('%a, %d %b %Y %H:%M:%S GMT') +"\r\n"
-                respuesta = respuesta + "Server: "
+                respuesta = respuesta + "Server: web.kaorisite29.org\r\n"
                 respuesta = respuesta + "Connection: "
-                respuesta = respuesta + "Keep-Alive\r\n"
-                respuesta = respuesta + "Set-Cookie: "
-                respuesta = respuesta + str(counter) + "\r\n"
+                respuesta = respuesta + "keep-alive\r\n"
+                respuesta = respuesta + "Keep-Alive: timeout = " + str(KEEP_ALIVE_TIME) + "\r\n"
+                respuesta = respuesta + "Set-Cookie: cookie_counter="
+                respuesta = respuesta + str(counter) + "; "
+                respuesta = respuesta + "Max-Age=" + MAX_AGE + "\r\n"
                 respuesta = respuesta + "Content-Length: "
                 respuesta = respuesta + str(tamano) + "\r\n"
-                respuesta = respuesta + "Content-Type "
+                respuesta = respuesta + "Content-Type: "
                 respuesta = respuesta + filetypes[ext] + "\r\n\r\n"
 
                 logger.info(cadena1)
@@ -244,6 +305,10 @@ def process_web_request(cs, webroot):
                 f.close()
 
                 enviar_mensaje(cs, mensaje)
+            else:
+                return devolver400(cs, webroot)
+        else:
+            break
 
 def main():
     """ Función principal del servidor
